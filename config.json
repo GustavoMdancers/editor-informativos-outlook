@@ -1,0 +1,31 @@
+{
+  "shared_mailbox": "sir.fibra",
+  "last_folder_entry_id": "",
+  "last_folder_store_id": "",
+  "last_folder_path": "",
+  "default_open_mode": "one",
+  "default_sender_mode": "shared",
+  "prefixes": [
+    "REPROGRAMAÇÃO:",
+    "CANCELAMENTO:"
+  ],
+  "subject_bases": [
+    "INFORMATIVO DE ATIVIDADE PROGRAMADA - AMERICAN TOWER",
+    "MANUTENÇÃO PROGRAMADA"
+  ],
+  "scenario_notices": {
+    "repro": "ATENÇÃO: A atividade informada abaixo foi REPROGRAMADA. Seguem as novas datas de execução.",
+    "cancel": "ATENÇÃO: A atividade informada abaixo foi CANCELADA."
+  },
+  "known_labels": [
+    "Registro da atividade",
+    "Localidade(s) de execução",
+    "Data/Hora de início",
+    "Data/Hora de término",
+    "Descrição/Justificativa",
+    "Listagem dos equipamentos, clientes e/ou nodes afetados do cliente"
+  ],
+  "per_email_labels": [
+    "Listagem dos equipamentos, clientes e/ou nodes afetados do cliente"
+  ]
+}

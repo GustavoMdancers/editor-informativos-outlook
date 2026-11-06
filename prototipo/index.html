@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de Informativos – Protótipo</title>
+<style>
+  :root{
+    --bg:#f3f5f9; --card:#fff; --line:#e2e6ee; --text:#1f2633; --muted:#6b7487;
+    --accent:#0f6cbd; --accent-2:#e3f0fb; --warn:#b26a00; --warn-bg:#fff4e0;
+    --ok:#1a7f37; --ok-bg:#e6f4ea; --danger:#c42b1c; --red:#e3262f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:"Segoe UI",system-ui,Arial,sans-serif;color:var(--text);background:var(--bg);font-size:14px}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;color:var(--text)}
+  button:hover{border-color:#b9c2d3;background:#f8fafc}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{background:#0c5aa0}
+  button.ghost{background:transparent;border-color:transparent;color:#fff}
+  button.ghost:hover{background:rgba(255,255,255,.12)}
+  button.small{padding:3px 8px;font-size:12px}
+  input[type=text],input[type=date],input[type=time],textarea,select{font:inherit;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;color:var(--text);width:100%}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--accent-2);border-color:var(--accent)}
+  textarea{resize:vertical;min-height:54px}
+
+  .banner{background:#fff4ce;color:#5c4400;text-align:center;font-size:12px;padding:4px;border-bottom:1px solid #f0d878}
+  header{display:flex;align-items:center;gap:16px;background:#1b2b44;color:#fff;padding:10px 18px}
+  .brand{font-weight:600;font-size:16px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .brand .logo{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--red),#ff7a59);display:grid;place-items:center;font-size:14px}
+  .folder{flex:1;display:flex;align-items:center;gap:10px;justify-content:flex-end}
+  .folder .path{background:rgba(255,255,255,.1);padding:6px 12px;border-radius:6px;font-size:13px;max-width:520px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .folder button{background:#fff;color:#1b2b44;border:none;font-weight:600}
+
+  main{height:calc(100vh - 25px - 52px - 60px)}
+  .empty{height:100%;display:grid;place-items:center}
+  .empty .box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:36px 44px;max-width:640px;text-align:center;box-shadow:0 6px 24px rgba(20,30,50,.06)}
+  .steps{display:flex;gap:14px;margin:24px 0;text-align:left}
+  .steps div{flex:1;background:var(--bg);border-radius:8px;padding:12px;font-size:13px}
+  .steps b{display:block;color:var(--accent);font-size:18px}
+
+  .workspace{display:grid;grid-template-columns:300px minmax(420px,1fr) minmax(380px,1fr);gap:12px;padding:12px;height:100%}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
+  .panel-head{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;font-weight:600}
+  .panel-head .sp{flex:1}
+  .panel-body{padding:12px 14px;overflow:auto;flex:1}
+  .muted{color:var(--muted);font-weight:400;font-size:12px}
+
+  /* lista */
+  .mail{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer;transition:.15s}
+  .mail:hover{border-color:#b9c2d3}
+  .mail.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-2)}
+  .mail.off{opacity:.5}
+  .mail .top{display:flex;align-items:center;gap:6px;font-size:13px}
+  .mail .to{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .mail .date{font-size:11px;color:var(--muted)}
+  .mail input.subj{margin-top:6px;font-size:12px;padding:4px 6px}
+  .mail input.subj.over{border-color:var(--warn);background:var(--warn-bg)}
+  .mail .badges{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+  .badge{font-size:11px;padding:1px 7px;border-radius:10px;background:var(--bg);color:var(--muted)}
+  .badge.chg{background:var(--ok-bg);color:var(--ok)}
+  .badge.ov{background:var(--warn-bg);color:var(--warn);cursor:pointer}
+
+  /* centro */
+  .section{margin-bottom:16px}
+  .section h4{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .chip{border-radius:16px;padding:4px 12px;font-size:13px}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .scen{display:flex;gap:8px}
+  .scen button{flex:1;text-align:left;padding:8px 10px}
+  .scen button small{display:block;color:var(--muted);font-size:11px}
+  .scen button.on{border-color:var(--accent);background:var(--accent-2)}
+  .subjrow{display:flex;gap:6px;align-items:center;margin-top:8px}
+  .subjrow .pfx{font-weight:600;color:var(--accent);white-space:nowrap}
+  .subjrow .var{font-size:12px;color:var(--muted);white-space:nowrap;background:var(--bg);border:1px dashed var(--line);border-radius:6px;padding:6px 8px}
+  table.fields{width:100%;border-collapse:collapse}
+  table.fields th{font-size:11px;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px;border-bottom:1px solid var(--line)}
+  table.fields td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.fields td.lbl{font-weight:600;width:26%;font-size:13px}
+  table.fields td.cur{width:28%;font-size:12px;color:var(--muted);white-space:pre-wrap;word-break:break-word}
+  table.fields td.ap{width:44px;text-align:center}
+  table.fields tr.changed td{background:#f2faf4}
+  table.fields tr.changed td.lbl::after{content:" ●";color:var(--ok)}
+  table.fields tr.hl td{animation:pulse 1.6s ease 2}
+  @keyframes pulse{50%{background:#fff4ce}}
+  .dt{display:flex;gap:6px}
+  .lock{display:inline-flex;align-items:center;gap:4px;background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:3px 8px;font-size:12px}
+  .rep{display:flex;gap:6px;margin-bottom:6px}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px}
+
+  /* preview */
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .seg button{border:none;border-radius:0;padding:4px 10px;font-size:12px}
+  .seg button.on{background:var(--accent);color:#fff}
+  .meta{font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);background:#fafbfd;line-height:1.7}
+  .meta b{display:inline-block;width:62px;color:var(--muted);font-weight:600}
+  iframe.pv{border:0;width:100%;flex:1;background:#fff;border-radius:0 0 10px 10px}
+
+  footer{height:60px;background:#fff;border-top:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 18px}
+  footer label{display:flex;align-items:center;gap:6px;font-size:13px}
+  footer select{width:auto}
+  footer .sp{flex:1}
+  footer .confirm{font-weight:600;padding:9px 18px}
+
+  /* modais */
+  .modal{position:fixed;inset:0;background:rgba(15,23,40,.45);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal.show{display:flex}
+  .dlg{background:#fff;border-radius:12px;width:520px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .dlg .hd{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:600;display:flex;align-items:center}
+  .dlg .hd .sp{flex:1}
+  .dlg .bd{padding:14px 18px;overflow:auto}
+  .dlg .ft{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;align-items:center}
+  .tree ul{list-style:none;margin:0;padding-left:18px}
+  .tree>ul{padding-left:0}
+  .tree li>div{padding:5px 8px;border-radius:6px;cursor:pointer;display:flex;gap:6px;align-items:center}
+  .tree li>div:hover{background:var(--bg)}
+  .tree li>div.sel{background:var(--accent-2);color:var(--accent);font-weight:600}
+  .tree .cnt{margin-left:auto;font-size:12px;color:var(--muted)}
+  .tree .tg{width:14px;color:var(--muted)}
+
+  /* janela outlook simulada */
+  .ol{width:900px;max-width:96vw;height:88vh;background:#fff;border-radius:6px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .ol .title{background:#0f6cbd;color:#fff;font-size:12px;padding:6px 12px;display:flex;align-items:center}
+  .ol .title .sp{flex:1}
+  .ol .title button{background:transparent;border:none;color:#fff;padding:0 8px}
+  .ol .ribbon{background:#f5f5f5;border-bottom:1px solid #ddd;padding:6px 12px;font-size:12px;display:flex;gap:16px;color:#444}
+  .ol .head{display:grid;grid-template-columns:96px 70px 1fr;gap:6px 8px;padding:12px;border-bottom:1px solid #ddd;align-items:center}
+  .ol .send{grid-row:span 4;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1px solid #ccc;border-radius:4px;background:#fff}
+  .ol .send span{font-size:20px}
+  .ol .head .lb{font-size:12px;border:1px solid #ccc;border-radius:3px;padding:5px 6px;text-align:center;background:#fafafa}
+  .ol .head input,.ol .head select{border:none;border-bottom:1px solid #ddd;border-radius:0;padding:5px 4px}
+  .ol .head select.empty{color:var(--danger)}
+  .ol iframe{flex:1;border:0;width:100%}
+  .ol .task{display:flex;gap:4px;padding:6px 8px;background:#e9edf3;border-top:1px solid #d0d6e0;overflow:auto}
+  .ol .task button{font-size:11px;white-space:nowrap;padding:3px 8px}
+  .ol .task button.on{background:#0f6cbd;color:#fff;border-color:#0f6cbd}
+  .ol .foot{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid #ddd;background:#fafafa}
+  .ol .foot .sp{flex:1}
+
+  .toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:#1b2b44;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:100;max-width:80vw;text-align:center}
+  .toast.show{opacity:1}
+  .loading{height:100%;display:grid;place-items:center;color:var(--muted)}
+  .spinner{width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="banner">PROTÓTIPO DE DEMONSTRAÇÃO: os dados são fictícios e nada é conectado ao Outlook. A janela do Outlook no final é uma simulação.</div>
+
+<header>
+  <div class="brand"><div class="logo">✉</div>Editor de Informativos</div>
+  <div class="folder">
+    <span class="path" id="folderPath">Nenhuma pasta selecionada</span>
+    <button id="btnFolder">📁 Selecionar pasta do Outlook</button>
+  </div>
+  <button class="ghost" id="btnExit" title="Encerra o aplicativo">⏻ Sair</button>
+</header>
+
+<main id="main">
+  <section class="empty" id="empty">
+    <div class="box">
+      <h2 style="margin:0 0 6px">Edição em lote de informativos</h2>
+      <div class="muted" style="font-size:14px">Escolha a pasta do Outlook com os informativos já enviados para começar.</div>
+      <div class="steps">
+        <div><b>1</b>Selecione a pasta (ex.: caixa compartilhada &gt; Informativos)</div>
+        <div><b>2</b>Revise e altere os campos em comum detectados</div>
+        <div><b>3</b>Confirme para abrir cada e-mail como rascunho no Outlook</div>
+      </div>
+      <button class="primary" onclick="openFolderModal()">📁 Selecionar pasta do Outlook</button>
+    </div>
+  </section>
+
+  <section class="loading" id="loading" hidden>
+    <div style="text-align:center"><div class="spinner"></div><div id="loadingMsg">Lendo e-mails…</div></div>
+  </section>
+
+  <section class="workspace" id="workspace" hidden>
+    <!-- lista de e-mails -->
+    <div class="panel">
+      <div class="panel-head">
+        <input type="checkbox" id="chkAll" checked title="Selecionar todos">
+        E-mails <span class="muted" id="countSel"></span>
+      </div>
+      <div class="panel-body" id="emailList"></div>
+    </div>
+
+    <!-- edição -->
+    <div class="panel">
+      <div class="panel-head">Campos em comum <span class="muted" id="detSummary"></span></div>
+      <div class="panel-body">
+        <div class="section">
+          <h4>Cenário (opcional)</h4>
+          <div class="scen" id="scen">
+            <button data-s="repro">🔁 Reprogramação<small>Prefixo REPROGRAMAÇÃO: e destaque nas datas</small></button>
+            <button data-s="cancel">⛔ Cancelamento<small>Prefixo CANCELAMENTO:</small></button>
+            <button data-s="none">✏️ Livre<small>Sem prefixo</small></button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Assunto</h4>
+          <div class="chips" id="pfxChips"></div>
+          <div class="subjrow">
+            <span class="pfx" id="pfxShow"></span>
+            <input type="text" id="subjFixed" title="Parte comum do assunto, igual em todos os e-mails">
+            <span class="var" title="Parte que varia em cada e-mail">+ parte variável</span>
+          </div>
+          <div class="hint">A parte comum vale para todos. Para mudar o assunto de um e-mail só, edite direto na lista à esquerda.</div>
+        </div>
+
+        <div class="section">
+          <h4>Tópicos do corpo</h4>
+          <table class="fields">
+            <thead><tr><th>Campo</th><th>Valor atual</th><th>Novo valor</th><th title="Aplicar">Aplicar</th></tr></thead>
+            <tbody id="fieldsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h4>Localizar e substituir no corpo</h4>
+          <div id="repList"></div>
+          <button class="small" id="addRep">+ adicionar regra</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- preview -->
+    <div class="panel">
+      <div class="panel-head">Pré-visualização <span class="sp"></span>
+        <div class="seg"><button data-m="old">Original</button><button data-m="new" class="on">Alterado</button></div>
+      </div>
+      <div class="meta" id="meta"></div>
+      <iframe class="pv" id="preview"></iframe>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <label>Remetente:
+    <select id="sender">
+      <option value="shared">Preencher com sir.fibra (caixa compartilhada)</option>
+      <option value="blank">Deixar em branco (escolher no Outlook)</option>
+    </select>
+  </label>
+  <label>Abrir: <input type="radio" name="mode" value="one" checked> um por vez</label>
+  <label><input type="radio" name="mode" value="all"> todos de uma vez</label>
+  <span class="sp"></span>
+  <button id="btnLog" disabled>📄 Baixar log (0)</button>
+  <button class="primary confirm" id="btnConfirm" disabled>Confirmar e abrir no Outlook</button>
+</footer>
+
+<!-- Modal: pastas -->
+<div class="modal" id="folderModal">
+  <div class="dlg">
+    <div class="hd">Selecionar pasta do Outlook<span class="sp"></span><button class="small" onclick="closeModal('folderModal')">✕</button></div>
+    <div class="bd"><div class="tree" id="tree"></div>
+      <div class="hint" style="margin-top:10px">Nesta demonstração, só a pasta <b>Nov-2026 – ATV 655957</b> tem e-mails de exemplo.</div>
+    </div>
+    <div class="ft">
+      <button onclick="toast('Na aplicação real, isto abre a janela de seleção de pastas do próprio Outlook (PickFolder).')">Usar seletor do Outlook…</button>
+      <span style="flex:1"></span>
+      <button onclick="closeModal('folderModal')">Cancelar</button>
+      <button class="primary" id="btnLoadFolder" disabled>Carregar e-mails</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: edição por e-mail -->
+<div class="modal" id="peModal">
+  <div class="dlg" style="width:720px">
+    <div class="hd"><span id="peTitle"></span><span class="sp"></span><button class="small" onclick="closeModal('peModal')">✕</button></div>
+    <div class="bd" id="peBody"></div>
+    <div class="ft"><button onclick="closeModal('peModal')">Cancelar</button><button class="primary" id="peSave">Salvar</button></div>
+  </div>
+</div>
+
+<!-- Modal: janela do Outlook simulada -->
+<div class="modal" id="olModal">
+  <div class="ol">
+    <div class="title"><span>📧 <span id="olTitle"></span> – Mensagem (HTML)</span><span class="sp"></span><button>—</button><button>▢</button><button onclick="olClose()">✕</button></div>
+    <div class="ribbon"><b>Mensagem</b><span>Inserir</span><span>Opções</span><span>Formatar Texto</span><span>Revisão</span><span style="margin-left:auto;color:#888">Janela simulada do Outlook</span></div>
+    <div class="head">
+      <button class="send" id="olSend"><span>➤</span>Enviar</button>
+      <div class="lb">De ▾</div>
+      <select id="olFrom">
+        <option value="">Selecione o remetente…</option>
+        <option value="sir.fibra@americantower.com">sir.fibra@americantower.com (caixa compartilhada)</option>
+        <option value="gabriel.silva@americantower.com">gabriel.silva@americantower.com</option>
+      </select>
+      <div class="lb">Para</div><input type="text" id="olTo">
+      <div class="lb">Cc</div><input type="text" id="olCc">
+      <div class="lb" style="border:none;background:none;text-align:left">Assunto</div><input type="text" id="olSubj">
+    </div>
+    <iframe id="olBody"></iframe>
+    <div class="task" id="olTask" hidden></div>
+    <div class="foot">
+      <span id="olCounter" class="muted"></span>
+      <span class="sp"></span>
+      <button id="olDiscard">🗑 Descartar</button>
+      <button class="primary" id="olNext">Abrir próximo ▶</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== DADOS DE EXEMPLO ===================== */
+const LOGO = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+`<svg xmlns="http://www.w3.org/2000/svg" width="260" height="96" viewBox="0 0 260 96">
+ <rect width="260" height="96" fill="#fff"/>
+ <polygon points="112,52 134,14 156,52 146,52 134,31 122,52" fill="#2b2b2b"/>
+ <polygon points="134,14 156,52 147,52 130,21" fill="#e3262f"/>
+ <text x="134" y="72" font-family="Arial" font-weight="bold" font-size="13" text-anchor="middle" fill="#333">AMERICAN TOWER</text>
+ <text x="134" y="84" font-family="Arial" font-size="7" letter-spacing="2" text-anchor="middle" fill="#999">DO BRASIL</text>
+</svg>`);
+
+const CLIENTS = [
+  {to:'administrativo@3rjjf.com.br', nome:'PRIME INTERNET', list:'MTR-CORP-5562 &nbsp;&nbsp;&nbsp; 3. REGISTRO DE IMOVEIS DE JUIZ DE FORA-MG - 450671 - Prime Internet', sent:'23/10/2026 09:12'},
+  {to:'noc@vianettelecom.com.br', nome:'VIANET TELECOM', list:'MTR-CORP-5571 &nbsp;&nbsp;&nbsp; VIANET POP CENTRO JF - 450702 - ViaNet Telecom', sent:'23/10/2026 09:14'},
+  {to:'ti@hospitalmonteserrat.org.br', nome:'HOSPITAL MONTE SERRAT', list:'MTR-CORP-5588 &nbsp;&nbsp;&nbsp; HOSPITAL MONTE SERRAT - BLOCO B - 450733 - Link Dedicado', sent:'23/10/2026 09:15'},
+  {to:'infra@pjf.mg.gov.br', nome:'PREFEITURA DE JUIZ DE FORA', list:'MTR-CORP-5590 &nbsp;&nbsp;&nbsp; PREFEITURA JF - SEDE ADMINISTRATIVA - 450741 - MPLS<br>MTR-CORP-5591 &nbsp;&nbsp;&nbsp; PREFEITURA JF - ANEXO II - 450742 - MPLS', sent:'23/10/2026 09:17'},
+  {to:'operacoes@conectmais.net.br', nome:'CONECT MAIS', list:'MTR-CORP-5603 &nbsp;&nbsp;&nbsp; CONECT MAIS NODE ALTO DOS PASSOS - 450760 - Trânsito IP', sent:'23/10/2026 09:18'},
+  {to:'suporte@colegiosantamaria.edu.br', nome:'COLÉGIO SANTA MARIA', list:'MTR-CORP-5611 &nbsp;&nbsp;&nbsp; COLEGIO SANTA MARIA - UNIDADE CENTRO - 450777 - Internet Dedicada', sent:'23/10/2026 09:20'},
+];
+
+const bodyHtml = c => `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222;background:#fff;margin:18px 22px}
+p{margin:0 0 4px}.hdr{text-align:right}.hdr img{border:1px solid #ddd}
+.hdr .t{font-family:Arial;font-size:13pt;color:#333;text-decoration:underline;margin-top:4px}
+</style></head><body>
+<div class="hdr"><img src="${LOGO}" width="260"><div class="t">Informativo de Interrupção</div></div>
+<p>&nbsp;</p><p>Prezado cliente,</p><p>&nbsp;</p>
+<p>A American Tower, através de seu time de engenharia e operações, vem por meio desse comunicado informar que serão realizadas atividades em nossa rede que ocasionarão interrupção nos serviços prestados durante a janela de execução.</p>
+<p>&nbsp;</p>
+<p><b><u>Seguem abaixo dados relevantes em relação à atividade.</u></b></p>
+<p>&nbsp;</p>
+<p><b>Registro da atividade:</b> 655957</p>
+<p><b>Localidade(s) de execução:</b> Juiz de Fora / MG</p>
+<p><b>Data/Hora de início:</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 04/11/2026 – 00h00</p>
+<p><b>Data/Hora de término:</b>&nbsp;&nbsp;&nbsp; 04/11/2026 – 06h00</p>
+<p><b>Descrição/Justificativa:</b> Manutenção Corretiva - Substituição e padronização da caixa de emendas CE-JFA-216B.</p>
+<p><b>Listagem dos equipamentos, clientes e/ou nodes afetados do cliente:</b></p>
+<p style="font-size:9pt;margin-left:6px">${c.list}</p>
+<p>&nbsp;</p>
+<p>Aproveitamos a oportunidade para reiterar nosso compromisso com a melhoria contínua da qualidade e disponibilidade de nossos serviços. A American Tower, através de sua equipe de atendimento e operações, segue à disposição para quaisquer esclarecimentos que se façam necessários.</p>
+<p>&nbsp;</p><p>Atenciosamente,</p>
+<p><b>Centro de Operações de Rede – American Tower do Brasil</b></p>
+</body></html>`;
+
+const TREE = [
+  {name:'gabriel.silva@americantower.com', icon:'👤', open:false, children:[
+    {name:'Caixa de Entrada', icon:'📥', count:132},{name:'Itens Enviados', icon:'📤', count:58},{name:'Rascunhos', icon:'📝', count:3}]},
+  {name:'sir.fibra (caixa compartilhada)', icon:'👥', open:true, children:[
+    {name:'Caixa de Entrada', icon:'📥', count:412},{name:'Itens Enviados', icon:'📤', count:1204},
+    {name:'Informativos', icon:'📁', open:true, children:[
+      {name:'Nov-2026 – ATV 655957', icon:'📁', count:6, demo:true},
+      {name:'Out-2026', icon:'📁', count:31}]}]}
+];
+
+/* ===================== ESTADO ===================== */
+const PFX_LIST = ['REPROGRAMAÇÃO:', 'CANCELAMENTO:', 'ATUALIZAÇÃO:'];
+const PFX_RE = /^(REPROGRAMAÇÃO|CANCELAMENTO|ATUALIZAÇÃO|ALTERAÇÃO):\s*/i;
+const DATE_RE = /^(\d{2})\/(\d{2})\/(\d{4})\s*[–-]\s*(\d{2})h(\d{2})$/;
+const S = {
+  emails:[], fields:[], subj:{prefix:'', fixed:'', origFixed:''},
+  over:{}, perEmail:{}, reps:[{find:'',rep:''}], sel:new Set(), cur:null,
+  pv:'new', log:[], drafts:[], di:0, folder:''
+};
+
+/* ===================== UTIL ===================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => s.replace(/\u00a0/g,' ').replace(/[ \t]+/g,' ').trim();
+const parse = h => new DOMParser().parseFromString(h, 'text/html');
+let toastT; function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3200); }
+function openModal(id){ $(id).classList.add('show'); }
+function closeModal(id){ $(id).classList.remove('show'); }
+let pvT; function refreshSoon(){ clearTimeout(pvT); pvT=setTimeout(()=>{ renderPreview(); updateBadges(); updateFooter(); },150); }
+
+/* ===================== DETECÇÃO ===================== */
+function labelOf(p){
+  let n = p.firstChild;
+  while(n && n.nodeType===3 && !norm(n.textContent)) n = n.nextSibling;
+  if(!n || n.nodeType!==1 || !/^(B|STRONG)$/.test(n.tagName)) return null;
+  const t = norm(n.textContent);
+  return (t.endsWith(':') && t.length < 120) ? {el:n, label:t.slice(0,-1).trim()} : null;
+}
+function textWithBreaks(el){ // <br> -> \n
+  const c = el.cloneNode(true); c.querySelectorAll('br').forEach(b=>b.replaceWith('\n'));
+  return c.textContent.split('\n').map(norm).filter(Boolean).join('\n');
+}
+function extractFields(doc){
+  const ps = [...doc.body.querySelectorAll('p')], out = [];
+  ps.forEach((p,i) => {
+    const l = labelOf(p); if(!l) return;
+    const after = []; for(let n=l.el.nextSibling; n; n=n.nextSibling) after.push(n);
+    const tmp = doc.createElement('span'); after.forEach(n=>tmp.appendChild(n.cloneNode(true)));
+    const inline = textWithBreaks(tmp);
+    if(inline){ out.push({label:l.label, value:inline, mode:'inline', p, el:l.el}); return; }
+    const vps = [];
+    for(let j=i+1; j<ps.length; j++){ if(labelOf(ps[j]) || !norm(ps[j].textContent)) break; vps.push(ps[j]); }
+    out.push({label:l.label, value:vps.map(textWithBreaks).join('\n'), mode:'next', p, el:l.el, vps});
+  });
+  return out;
+}
+function detect(){
+  S.emails.forEach(e => { const d=parse(e.html); e.fields = extractFields(d).map(f=>({label:f.label, value:f.value})); e.text = d.body.textContent; });
+  const first = S.emails[0].fields.map(f=>f.label);
+  const common = first.filter(l => S.emails.every(e => e.fields.some(f=>f.label===l)));
+  S.fields = common.map(l => {
+    const vals = S.emails.map(e => e.fields.find(f=>f.label===l).value);
+    const uniq = [...new Set(vals)], varied = uniq.length > 1, cur = uniq[0];
+    const type = DATE_RE.test(cur) ? 'date' : (cur.length > 60 || cur.includes('\n') ? 'long' : 'text');
+    return {label:l, uniq, varied, cur: varied?null:cur, nv: varied?'':cur, apply:!varied, type: varied?'long':type};
+  });
+  // assunto: parte comum
+  const subs = S.emails.map(e=>e.subject);
+  let cp = subs.reduce((a,s)=>{ let i=0; while(i<a.length && a[i]===s[i]) i++; return a.slice(0,i); });
+  if(subs.length>1){ const m = cp.match(/^.*[\s\-–]/); cp = m ? m[0] : ''; }
+  S.subj.origFixed = cp;
+  const pm = cp.match(PFX_RE);
+  S.subj.prefix = pm ? pm[1].toUpperCase()+':' : '';
+  S.subj.fixed = pm ? cp.slice(pm[0].length) : cp;
+}
+
+/* ===================== APLICAÇÃO DAS ALTERAÇÕES ===================== */
+function newValueFor(e, label, value){
+  const pe = S.perEmail[e.id] && S.perEmail[e.id][label];
+  if(pe != null && pe !== value) return pe;
+  const g = S.fields.find(x=>x.label===label);
+  if(g && g.apply && !g.varied && g.nv !== '' && g.nv !== value) return g.nv;
+  return null;
+}
+function finalSubject(e){
+  if(S.over[e.id] != null) return S.over[e.id];
+  const variable = e.subject.slice(S.subj.origFixed.length);
+  return (S.subj.prefix ? S.subj.prefix + ' ' : '') + S.subj.fixed + variable;
+}
+function makeVal(doc, v, mark){
+  const s = doc.createElement(mark ? 'mark' : 'span');
+  if(mark) s.className = 'chg';
+  s.innerHTML = esc(v).replace(/\n/g,'<br>');
+  return s;
+}
+function setField(doc, f, v, mark){
+  if(f.mode === 'inline'){
+    const n = f.el.nextSibling;
+    const lead = (n && n.nodeType===3) ? (n.textContent.match(/^[\s\u00a0]*/)[0] || ' ') : ' ';
+    while(f.el.nextSibling) f.el.nextSibling.remove();
+    f.p.append(doc.createTextNode(lead), makeVal(doc, v, mark));
+  } else {
+    if(!f.vps.length){ const np = doc.createElement('p'); f.p.after(np); f.vps = [np]; }
+    const first = f.vps[0]; f.vps.slice(1).forEach(x=>x.remove());
+    first.innerHTML = ''; first.append(makeVal(doc, v, mark));
+  }
+}
+function replaceText(doc, find, rep, mark){
+  const w = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT), nodes = [];
+  while(w.nextNode()) nodes.push(w.currentNode);
+  nodes.forEach(n => {
+    if(!n.textContent.includes(find)) return;
+    const frag = doc.createDocumentFragment();
+    n.textContent.split(find).forEach((pt,i) => {
+      if(i){ if(mark){ const m=doc.createElement('mark'); m.className='chg'; m.textContent=rep; frag.append(m);} else frag.append(doc.createTextNode(rep)); }
+      frag.append(doc.createTextNode(pt));
+    });
+    n.replaceWith(frag);
+  });
+}
+function transform(e, mark){
+  const doc = parse(e.html);
+  extractFields(doc).forEach(f => { const nv = newValueFor(e, f.label, f.value); if(nv != null) setField(doc, f, nv, mark); });
+  S.reps.filter(r=>r.find).forEach(r => replaceText(doc, r.find, r.rep, mark));
+  if(mark){ const st=doc.createElement('style'); st.textContent='mark.chg{background:#fff1a8;outline:1px dashed #d9a400;padding:0 2px}'; doc.head.append(st); }
+  return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+}
+function changesFor(e){
+  const ch = [];
+  if(finalSubject(e) !== e.subject) ch.push('Assunto');
+  e.fields.forEach(f => { if(newValueFor(e, f.label, f.value) != null) ch.push(f.label); });
+  if(S.reps.some(r => r.find && e.text.includes(r.find))) ch.push('Localizar/Substituir');
+  return ch;
+}
+
+/* ===================== PASTAS ===================== */
+let pickedNode = null;
+function renderTree(){
+  const build = (nodes, path) => '<ul>' + nodes.map((n,i) => {
+    const p = path.concat(n.name), id = p.join(' > ');
+    const kids = n.children ? (n.open ? build(n.children, p) : '') : '';
+    return `<li><div data-id="${esc(id)}" class="${pickedNode && pickedNode.id===id ? 'sel':''}">
+      <span class="tg">${n.children ? (n.open?'▾':'▸') : ''}</span>${n.icon||''} ${esc(n.name)}
+      ${n.count!=null ? `<span class="cnt">${n.count.toLocaleString('pt-BR')}</span>`:''}</div>${kids}</li>`;
+  }).join('') + '</ul>';
+  $('tree').innerHTML = build(TREE, []);
+}
+function findNode(id){
+  let res=null; const walk=(ns,p)=>ns.forEach(n=>{ const q=p.concat(n.name); if(q.join(' > ')===id) res=n; if(n.children) walk(n.children,q); });
+  walk(TREE,[]); return res;
+}
+$('tree').addEventListener('click', ev => {
+  const d = ev.target.closest('div[data-id]'); if(!d) return;
+  const n = findNode(d.dataset.id);
+  if(n.children){ n.open = !n.open; }
+  else { pickedNode = {id:d.dataset.id, node:n}; $('btnLoadFolder').disabled = !n.demo;
+    if(!n.demo) toast('Na demonstração, use a pasta "Nov-2026 – ATV 655957".'); }
+  renderTree();
+});
+function openFolderModal(){ renderTree(); openModal('folderModal'); }
+$('btnFolder').onclick = openFolderModal;
+$('btnLoadFolder').onclick = () => { closeModal('folderModal'); loadFolder(pickedNode.id); };
+
+function loadFolder(path){
+  S.folder = path; $('folderPath').textContent = path + '  (6 e-mails)';
+  $('empty').hidden = true; $('workspace').hidden = true; $('loading').hidden = false;
+  $('loadingMsg').textContent = 'Lendo 6 e-mails da pasta…';
+  setTimeout(()=>{ $('loadingMsg').textContent = 'Detectando assunto e tópicos em comum…'; }, 600);
+  setTimeout(()=>{
+    S.emails = CLIENTS.map((c,i)=>({id:'e'+i, to:c.to, cc:'', sent:c.sent,
+      subject:`INFORMATIVO DE ATIVIDADE PROGRAMADA - AMERICAN TOWER - ATV 655957 - ${c.nome}`, html:bodyHtml(c)}));
+    S.over = {}; S.perEmail = {}; S.reps = [{find:'',rep:''}];
+    S.sel = new Set(S.emails.map(e=>e.id)); S.cur = S.emails[0].id;
+    detect();
+    $('loading').hidden = true; $('workspace').hidden = false;
+    const nv = S.fields.filter(f=>f.varied).length;
+    $('detSummary').textContent = `· ${S.fields.length} tópicos + assunto detectados (${nv} variável)`;
+    renderAll();
+    toast(`${S.emails.length} e-mails lidos · ${S.fields.length} tópicos em comum encontrados no corpo`);
+  }, 1300);
+}
+
+/* ===================== RENDER ===================== */
+function renderAll(){ renderList(); renderSubject(); renderFields(); renderReps(); renderPreview(); updateFooter(); setScenario(null); }
+
+function renderList(){
+  $('emailList').innerHTML = S.emails.map(e => `
+    <div class="mail ${S.cur===e.id?'active':''} ${S.sel.has(e.id)?'':'off'}" data-id="${e.id}">
+      <div class="top"><input type="checkbox" class="pick" ${S.sel.has(e.id)?'checked':''}>
+        <span class="to" title="${esc(e.to)}">${esc(e.to)}</span><span class="date">${e.sent}</span></div>
+      <input type="text" class="subj ${S.over[e.id]!=null?'over':''}" value="${esc(finalSubject(e))}" title="Assunto final deste e-mail">
+      <div class="badges" data-b="${e.id}"></div>
+    </div>`).join('');
+  updateBadges(); updateCount();
+}
+function updateBadges(){
+  S.emails.forEach(e => {
+    const b = document.querySelector(`[data-b="${e.id}"]`); if(!b) return;
+    const ch = changesFor(e);
+    b.innerHTML = (ch.length ? `<span class="badge chg" title="${esc(ch.join(', '))}">${ch.length} alteração(ões)</span>` : '<span class="badge">sem alterações</span>')
+      + (S.over[e.id]!=null ? `<span class="badge ov" data-reset="${e.id}" title="Voltar ao assunto padrão">assunto individual ✕</span>` : '');
+    const inp = document.querySelector(`.mail[data-id="${e.id}"] input.subj`);
+    if(inp && document.activeElement !== inp){ inp.value = finalSubject(e); inp.classList.toggle('over', S.over[e.id]!=null); }
+  });
+}
+function updateCount(){ $('countSel').textContent = `· ${S.sel.size} de ${S.emails.length} selecionados`; $('chkAll').checked = S.sel.size===S.emails.length; }
+
+$('emailList').addEventListener('click', ev => {
+  const card = ev.target.closest('.mail'); if(!card) return;
+  const id = card.dataset.id;
+  if(ev.target.dataset.reset){ delete S.over[ev.target.dataset.reset]; updateBadges(); renderPreview(); return; }
+  if(ev.target.classList.contains('pick')){
+    ev.target.checked ? S.sel.add(id) : S.sel.delete(id);
+    card.classList.toggle('off', !ev.target.checked); updateCount(); updateFooter(); return;
+  }
+  if(ev.target.classList.contains('subj')) { if(S.cur!==id){ S.cur=id; markActive(); renderPreview(); } return; }
+  S.cur = id; markActive(); renderPreview();
+});
+$('emailList').addEventListener('input', ev => {
+  if(!ev.target.classList.contains('subj')) return;
+  const id = ev.target.closest('.mail').dataset.id;
+  S.over[id] = ev.target.value; ev.target.classList.add('over'); refreshSoon();
+});
+function markActive(){ document.querySelectorAll('.mail').forEach(m=>m.classList.toggle('active', m.dataset.id===S.cur)); }
+$('chkAll').onchange = ev => { S.sel = ev.target.checked ? new Set(S.emails.map(e=>e.id)) : new Set(); renderList(); updateFooter(); };
+
+/* assunto */
+function renderSubject(){
+  const opts = [''].concat(PFX_LIST);
+  const custom = S.subj.prefix && !PFX_LIST.includes(S.subj.prefix);
+  $('pfxChips').innerHTML = '<span class="muted">Prefixo:</span>' + opts.map(p =>
+    `<button class="chip ${S.subj.prefix===p?'on':''}" data-p="${esc(p)}">${p||'Nenhum'}</button>`).join('')
+    + `<input type="text" id="pfxCustom" placeholder="Outro…" style="width:120px;padding:4px 8px" value="${custom?esc(S.subj.prefix):''}">`;
+  $('pfxShow').textContent = S.subj.prefix;
+  $('subjFixed').value = S.subj.fixed;
+}
+$('pfxChips').addEventListener('click', ev => { const b=ev.target.closest('button[data-p]'); if(!b) return; S.subj.prefix=b.dataset.p; renderSubject(); refreshSoon(); });
+$('pfxChips').addEventListener('input', ev => { if(ev.target.id!=='pfxCustom') return; S.subj.prefix = ev.target.value.trim(); $('pfxShow').textContent=S.subj.prefix;
+  document.querySelectorAll('#pfxChips .chip').forEach(c=>c.classList.toggle('on', c.dataset.p===S.subj.prefix)); refreshSoon(); });
+$('subjFixed').addEventListener('input', ev => { S.subj.fixed = ev.target.value; refreshSoon(); });
+
+/* cenários */
+function setScenario(s){
+  document.querySelectorAll('#scen button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+  if(!s) return;
+  S.subj.prefix = s==='repro' ? 'REPROGRAMAÇÃO:' : s==='cancel' ? 'CANCELAMENTO:' : '';
+  renderSubject(); refreshSoon();
+  if(s==='repro'){
+    document.querySelectorAll('#fieldsBody tr').forEach(tr => {
+      const f = S.fields[tr.dataset.i]; tr.classList.remove('hl');
+      if(f && f.type==='date'){ void tr.offsetWidth; tr.classList.add('hl'); }
+    });
+    const d = document.querySelector('#fieldsBody input[type=date]'); if(d) d.focus();
+    toast('Reprogramação: prefixo aplicado. Ajuste as datas destacadas.');
+  }
+}
+$('scen').addEventListener('click', ev => { const b=ev.target.closest('button'); if(b) setScenario(b.dataset.s); });
+
+/* campos */
+function dateParts(v){ const m = v.match(DATE_RE); return m ? {d:`${m[3]}-${m[2]}-${m[1]}`, t:`${m[4]}:${m[5]}`} : {d:'',t:''}; }
+function dateFmt(d,t){ if(!d) return ''; const [y,mo,da]=d.split('-'); const [h,mi]=(t||'00:00').split(':'); return `${da}/${mo}/${y} – ${h}h${mi}`; }
+function renderFields(){
+  $('fieldsBody').innerHTML = S.fields.map((f,i) => {
+    let cur, edit;
+    if(f.varied){
+      cur = `<span class="lock">🔒 ${f.uniq.length} valores diferentes</span>`;
+      const n = S.emails.filter(e => S.perEmail[e.id] && S.perEmail[e.id][f.label]!=null).length;
+      edit = `<button class="small" data-pe="${i}">Editar por e-mail…</button>${n?`<div class="hint">${n} e-mail(s) com valor individual</div>`:'<div class="hint">Diferente em cada e-mail, por isso não é editado em lote</div>'}`;
+    } else {
+      cur = esc(f.cur);
+      if(f.type==='date'){ const p = dateParts(f.nv); edit = `<div class="dt"><input type="date" data-d="${i}" value="${p.d}"><input type="time" data-t="${i}" value="${p.t}"></div><div class="hint" data-fmt="${i}">${esc(f.nv)}</div>`; }
+      else if(f.type==='long') edit = `<textarea data-v="${i}">${esc(f.nv)}</textarea>`;
+      else edit = `<input type="text" data-v="${i}" value="${esc(f.nv)}">`;
+    }
+    return `<tr data-i="${i}" class="${!f.varied && f.nv!==f.cur ? 'changed':''}">
+      <td class="lbl">${esc(f.label)}</td><td class="cur">${cur}</td><td>${edit}</td>
+      <td class="ap">${f.varied?'—':`<input type="checkbox" data-a="${i}" ${f.apply?'checked':''}>`}</td></tr>`;
+  }).join('');
+}
+$('fieldsBody').addEventListener('input', ev => {
+  const t = ev.target, ds = t.dataset;
+  let i = ds.v ?? ds.d ?? ds.t; if(i==null) return; const f = S.fields[i];
+  if(ds.v != null) f.nv = t.value;
+  else { const row = t.closest('tr'); f.nv = dateFmt(row.querySelector('[data-d]').value, row.querySelector('[data-t]').value); row.querySelector('[data-fmt]').textContent = f.nv; }
+  t.closest('tr').classList.toggle('changed', f.nv !== f.cur);
+  refreshSoon();
+});
+$('fieldsBody').addEventListener('change', ev => { const a = ev.target.dataset.a; if(a!=null){ S.fields[a].apply = ev.target.checked; refreshSoon(); } });
+$('fieldsBody').addEventListener('click', ev => { const p = ev.target.dataset.pe; if(p!=null) openPerEmail(+p); });
+
+/* edição por e-mail */
+let peField = null;
+function openPerEmail(i){
+  peField = S.fields[i];
+  $('peTitle').textContent = 'Editar por e-mail: ' + peField.label;
+  $('peBody').innerHTML = S.emails.map(e => {
+    const orig = e.fields.find(f=>f.label===peField.label).value;
+    const v = (S.perEmail[e.id] && S.perEmail[e.id][peField.label]) ?? orig;
+    return `<div style="margin-bottom:12px"><div style="font-weight:600;font-size:13px;margin-bottom:4px">${esc(e.to)}</div>
+      <textarea data-e="${e.id}" rows="2">${esc(v)}</textarea></div>`;
+  }).join('');
+  openModal('peModal');
+}
+$('peSave').onclick = () => {
+  document.querySelectorAll('#peBody textarea').forEach(t => {
+    const e = S.emails.find(x=>x.id===t.dataset.e), orig = e.fields.find(f=>f.label===peField.label).value;
+    S.perEmail[e.id] = S.perEmail[e.id] || {};
+    if(t.value.trim() === orig) delete S.perEmail[e.id][peField.label]; else S.perEmail[e.id][peField.label] = t.value.trim();
+  });
+  closeModal('peModal'); renderFields(); refreshSoon();
+};
+
+/* localizar/substituir */
+function renderReps(){
+  $('repList').innerHTML = S.reps.map((r,i)=>`<div class="rep">
+    <input type="text" placeholder="Localizar…" data-f="${i}" value="${esc(r.find)}">
+    <input type="text" placeholder="Substituir por…" data-r="${i}" value="${esc(r.rep)}">
+    <button class="small" data-x="${i}" title="Remover">✕</button></div>`).join('');
+}
+$('repList').addEventListener('input', ev => { const d=ev.target.dataset; if(d.f!=null) S.reps[d.f].find=ev.target.value; if(d.r!=null) S.reps[d.r].rep=ev.target.value; refreshSoon(); });
+$('repList').addEventListener('click', ev => { const x=ev.target.dataset.x; if(x==null) return; S.reps.splice(x,1); if(!S.reps.length) S.reps.push({find:'',rep:''}); renderReps(); refreshSoon(); });
+$('addRep').onclick = () => { S.reps.push({find:'',rep:''}); renderReps(); };
+
+/* preview */
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  S.pv = b.dataset.m; document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on', x===b)); renderPreview();
+});
+function renderPreview(){
+  const e = S.emails.find(x=>x.id===S.cur); if(!e) return;
+  const isNew = S.pv==='new', subj = isNew ? finalSubject(e) : e.subject;
+  const from = $('sender').value==='shared' ? 'sir.fibra@americantower.com' : '<span style="color:#c42b1c">(escolher no Outlook)</span>';
+  const ch = changesFor(e);
+  $('meta').innerHTML = `<div><b>De</b>${isNew?from:'sir.fibra@americantower.com'}</div><div><b>Para</b>${esc(e.to)}</div>
+    <div><b>Assunto</b>${isNew && subj!==e.subject ? `<mark style="background:#fff1a8">${esc(subj)}</mark>` : esc(subj)}</div>
+    ${isNew ? `<div><b>Alterado</b>${ch.length?esc(ch.join(' · ')):'<span class="muted">nada ainda</span>'}</div>`:''}`;
+  $('preview').srcdoc = isNew ? transform(e, true) : e.html;
+}
+$('sender').onchange = renderPreview;
+
+/* ===================== CONFIRMAR / OUTLOOK ===================== */
+function updateFooter(){
+  const n = S.sel.size;
+  $('btnConfirm').disabled = !n;
+  $('btnConfirm').textContent = `Confirmar e abrir ${n} rascunho(s) no Outlook`;
+  $('btnLog').disabled = !S.log.length; $('btnLog').textContent = `📄 Baixar log (${S.log.length})`;
+}
+$('btnConfirm').onclick = () => {
+  const noChange = S.emails.filter(e=>S.sel.has(e.id) && !changesFor(e).length).length;
+  if(noChange && !confirm(`${noChange} e-mail(s) selecionado(s) não têm alterações. Abrir mesmo assim?`)) return;
+  S.drafts = S.emails.filter(e=>S.sel.has(e.id)).map(e => ({e, subj:finalSubject(e), html:transform(e,false), changes:changesFor(e), status:'aberto'}));
+  S.di = 0;
+  const all = document.querySelector('input[name=mode]:checked').value === 'all';
+  $('olTask').hidden = !all;
+  if(all) S.drafts.forEach(d => logDraft(d, 'aberto'));
+  else logDraft(S.drafts[0], 'aberto');
+  showDraft(0); openModal('olModal');
+};
+function logDraft(d, status){
+  const ex = S.log.find(l => l.draft === d);
+  if(ex){ ex.status = status; ex.hora = new Date().toLocaleTimeString('pt-BR'); }
+  else S.log.push({draft:d, hora:new Date().toLocaleTimeString('pt-BR'), para:d.e.to, orig:d.e.subject, novo:d.subj, campos:d.changes.join(' | '), status});
+  d.status = status; updateFooter();
+}
+function showDraft(i){
+  S.di = i; const d = S.drafts[i], all = !$('olTask').hidden;
+  $('olTitle').textContent = d.subj.slice(0,60) + (d.subj.length>60?'…':'');
+  $('olFrom').value = $('sender').value==='shared' ? 'sir.fibra@americantower.com' : '';
+  $('olFrom').classList.toggle('empty', !$('olFrom').value);
+  $('olTo').value = d.e.to; $('olCc').value = d.e.cc; $('olSubj').value = d.subj;
+  const f = $('olBody'); f.onload = () => { try{ f.contentDocument.designMode = 'on'; }catch(e){} }; f.srcdoc = d.html;
+  $('olCounter').textContent = `Rascunho ${i+1} de ${S.drafts.length} · status: ${d.status}`;
+  $('olNext').textContent = i < S.drafts.length-1 ? (all ? 'Próxima janela ▶' : 'Abrir próximo ▶') : 'Concluir ✓';
+  if(all) $('olTask').innerHTML = S.drafts.map((x,j)=>`<button data-j="${j}" class="${j===i?'on':''}">${x.status==='enviado (simulação)'?'✓ ':x.status==='descartado'?'🗑 ':'📧 '}${esc(x.e.to)}</button>`).join('');
+}
+$('olTask').addEventListener('click', ev => { const j = ev.target.closest('button')?.dataset.j; if(j!=null) showDraft(+j); });
+$('olFrom').onchange = () => $('olFrom').classList.toggle('empty', !$('olFrom').value);
+function advance(){
+  if(S.di < S.drafts.length-1){ const n = S.di+1; if(S.drafts[n].status==='aberto' && !S.log.find(l=>l.draft===S.drafts[n])) logDraft(S.drafts[n],'aberto'); showDraft(n); }
+  else { olClose(); const env = S.drafts.filter(d=>d.status==='enviado (simulação)').length;
+    toast(`Concluído: ${S.drafts.length} rascunho(s) abertos, ${env} enviado(s) na simulação. Baixe o log no rodapé.`); }
+}
+$('olNext').onclick = advance;
+$('olSend').onclick = () => {
+  if(!$('olFrom').value){ toast('Selecione o remetente no campo "De" antes de enviar.'); $('olFrom').focus(); return; }
+  S.drafts[S.di].subj = $('olSubj').value;
+  logDraft(S.drafts[S.di], 'enviado (simulação)');
+  toast('Simulação: na aplicação real, o envio é feito por você no Outlook.');
+  advance();
+};
+$('olDiscard').onclick = () => { logDraft(S.drafts[S.di], 'descartado'); advance(); };
+function olClose(){ closeModal('olModal'); }
+
+$('btnLog').onclick = () => {
+  const rows = [['hora','para','assunto_original','assunto_novo','campos_alterados','status']]
+    .concat(S.log.map(l=>[l.hora,l.para,l.orig,l.novo,l.campos,l.status]));
+  const csv = '\ufeff' + rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'log_informativos.csv'; a.click();
+};
+$('btnExit').onclick = () => toast('Na aplicação real, isto encerra o servidor local e fecha o .exe.');
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', ev => { if(ev.target===m && m.id!=='olModal') closeModal(m.id); }));
+</script>
+</body>
+</html>

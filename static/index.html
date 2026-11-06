@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de Informativos – Outlook</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="banner" id="topBanner"></div>
+
+<header>
+  <div class="brand"><div class="logo">✉</div>Editor de Informativos</div>
+  <div class="folder">
+    <span class="path" id="folderPath">Nenhuma pasta selecionada</span>
+    <button id="btnFolder">📁 Selecionar pasta do Outlook</button>
+  </div>
+  <button class="ghost" id="btnExit" title="Encerra o servidor local e fecha a aplicação">⏻ Sair</button>
+</header>
+
+<main id="main">
+  <section class="empty" id="empty">
+    <div class="box">
+      <h2 style="margin:0 0 6px">Edição em lote de informativos</h2>
+      <div class="muted" style="font-size:14px">Escolha a pasta do Outlook com os informativos de atividade programada para começar.</div>
+      <div class="steps">
+        <div><b>1</b>Selecione a pasta do Outlook (ex.: caixa compartilhada &gt; Informativos)</div>
+        <div><b>2</b>Revise e altere os campos em comum detectados</div>
+        <div><b>3</b>Confirme para abrir cada e-mail como rascunho no Outlook</div>
+      </div>
+      <div class="empty-actions">
+        <button class="primary" onclick="openFolderModal()">📁 Selecionar pasta do Outlook</button>
+        <button id="btnLastFolder" hidden>↺ Reabrir última pasta</button>
+        <button onclick="loadDemoFolder()" title="Carrega 6 informativos de exemplo para testar a ferramenta">🧪 Carregar lote de demonstração</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="loading" id="loading" hidden>
+    <div style="text-align:center"><div class="spinner"></div><div id="loadingMsg">Lendo e-mails…</div></div>
+  </section>
+
+  <section class="workspace" id="workspace" hidden>
+    <!-- lista de e-mails -->
+    <div class="panel">
+      <div class="panel-head">
+        <input type="checkbox" id="chkAll" checked title="Selecionar todos">
+        E-mails <span class="muted" id="countSel"></span>
+      </div>
+      <div class="panel-body" id="emailList"></div>
+    </div>
+
+    <!-- edição -->
+    <div class="panel">
+      <div class="panel-head">Campos em comum <span class="muted" id="detSummary"></span></div>
+      <div class="panel-body">
+        <div class="section">
+          <h4>Cenário (opcional)</h4>
+          <div class="scen" id="scen">
+            <button data-s="repro">🔁 Reprogramação<small>Prefixo REPROGRAMAÇÃO: e destaque nas datas</small></button>
+            <button data-s="cancel">⛔ Cancelamento<small>Prefixo CANCELAMENTO:</small></button>
+            <button data-s="none">✏️ Livre<small>Sem prefixo</small></button>
+          </div>
+          <div id="noticeBox" style="margin-top:8px" hidden>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:4px">
+              <input type="checkbox" id="chkNotice"> Inserir aviso de cenário no topo do corpo do e-mail:
+            </label>
+            <input type="text" id="noticeInput" placeholder="Ex.: ATENÇÃO: A atividade informada abaixo foi REPROGRAMADA...">
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Assunto</h4>
+          <div class="chips" id="pfxChips"></div>
+          <div class="chips" id="baseChips" style="margin-top:6px"></div>
+          <div class="subjrow">
+            <span class="pfx" id="pfxShow"></span>
+            <input type="text" id="subjFixed" title="Assunto base (igual para todos os e-mails)">
+          </div>
+          <div class="hint">O assunto é igual para todos os e-mails do lote (ex.: <b>INFORMATIVO DE ATIVIDADE PROGRAMADA - AMERICAN TOWER</b> ou <b>MANUTENÇÃO PROGRAMADA</b>). Se precisar alterar um e-mail específico, edite na lista à esquerda.</div>
+        </div>
+
+        <div class="section">
+          <h4>Tópicos do corpo</h4>
+          <table class="fields">
+            <thead><tr><th>Campo</th><th>Valor atual</th><th>Novo valor</th><th title="Aplicar">Aplicar</th></tr></thead>
+            <tbody id="fieldsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h4>Localizar e substituir no corpo</h4>
+          <div id="repList"></div>
+          <button class="small" id="addRep">+ adicionar regra</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- preview -->
+    <div class="panel">
+      <div class="panel-head">Pré-visualização <span class="sp"></span>
+        <div class="seg"><button data-m="old">Original</button><button data-m="new" class="on">Alterado</button></div>
+      </div>
+      <div class="meta" id="meta"></div>
+      <iframe class="pv" id="preview"></iframe>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <label>Remetente:
+    <select id="senderMode">
+      <option value="shared">Preencher caixa compartilhada:</option>
+      <option value="blank">Deixar em branco (escolher no Outlook)</option>
+    </select>
+  </label>
+  <input type="text" id="sharedMailboxInput" value="sir.fibra" style="width:170px" title="Nome ou endereço da caixa compartilhada (SentOnBehalfOfName)">
+  <label>Abrir: <input type="radio" name="mode" value="one" checked> um por vez</label>
+  <label><input type="radio" name="mode" value="all"> todos de uma vez</label>
+  <span class="sp"></span>
+  <button id="btnLog" disabled>📄 Baixar log (0)</button>
+  <button class="primary confirm" id="btnConfirm" disabled>Confirmar e abrir no Outlook</button>
+</footer>
+
+<!-- Modal: pastas -->
+<div class="modal" id="folderModal">
+  <div class="dlg">
+    <div class="hd">Selecionar pasta do Outlook<span class="sp"></span><button class="small" onclick="closeModal('folderModal')">✕</button></div>
+    <div class="bd">
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+        <input type="text" id="subjFilterInput" placeholder="Filtro opcional no assunto (ex.: INFORMATIVO)..." style="flex:1">
+        <label style="white-space:nowrap;font-size:12px;color:var(--muted)">Máx:
+          <input type="number" id="maxItemsInput" value="200" min="1" max="1000" style="width:72px">
+        </label>
+      </div>
+      <div class="tree" id="tree"><div class="muted">Carregando pastas do Outlook…</div></div>
+    </div>
+    <div class="ft">
+      <button id="btnNativePick" title="Abre a janela nativa de seleção de pastas do Outlook">🪟 Usar seletor do Outlook…</button>
+      <button onclick="closeModal('folderModal'); loadDemoFolder();" title="Carrega 6 informativos de exemplo">🧪 Lote de demonstração</button>
+      <span style="flex:1"></span>
+      <button onclick="closeModal('folderModal')">Cancelar</button>
+      <button class="primary" id="btnLoadFolder" disabled>Carregar e-mails</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: edição por e-mail -->
+<div class="modal" id="peModal">
+  <div class="dlg" style="width:720px">
+    <div class="hd"><span id="peTitle"></span><span class="sp"></span><button class="small" onclick="closeModal('peModal')">✕</button></div>
+    <div class="bd" id="peBody"></div>
+    <div class="ft"><button onclick="closeModal('peModal')">Cancelar</button><button class="primary" id="peSave">Salvar</button></div>
+  </div>
+</div>
+
+<!-- Modal: fila de abertura no Outlook (um por vez / todos) -->
+<div class="modal" id="queueModal">
+  <div class="dlg" style="width:680px">
+    <div class="hd">Abertura de rascunhos no Outlook<span class="sp"></span><button class="small" onclick="closeModal('queueModal')">✕</button></div>
+    <div class="bd">
+      <div id="queueStatusMsg" style="margin-bottom:10px;font-weight:600"></div>
+      <div class="hint" style="margin-bottom:12px">Cada e-mail é aberto numa janela de rascunho real do Outlook (<b>.Display()</b>, sem enviar) para você conferir o remetente e enviar manualmente.</div>
+      <div id="queueList"></div>
+    </div>
+    <div class="ft">
+      <button id="btnQueueSkip">Pular este</button>
+      <button class="primary" id="btnQueueNext">Abrir próximo no Outlook ▶</button>
+      <button id="btnQueueClose">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: janela do Outlook simulada (usado apenas no modo demonstração caso o Outlook não esteja aberto) -->
+<div class="modal" id="olModal">
+  <div class="ol">
+    <div class="title"><span>📧 <span id="olTitle"></span> – Mensagem (HTML)</span><span class="sp"></span><button onclick="closeModal('olModal')">✕</button></div>
+    <div class="ribbon"><b>Mensagem</b><span>Inserir</span><span>Opções</span><span>Formatar Texto</span><span>Revisão</span><span style="margin-left:auto;color:#888">Janela simulada (Modo Demonstração)</span></div>
+    <div class="head">
+      <button class="send" id="olSend"><span>➤</span>Enviar</button>
+      <div class="lb">De ▾</div>
+      <input type="text" id="olFrom" placeholder="Selecione/digite o remetente…">
+      <div class="lb">Para</div><input type="text" id="olTo">
+      <div class="lb">Cc</div><input type="text" id="olCc">
+      <div class="lb" style="border:none;background:none;text-align:left">Assunto</div><input type="text" id="olSubj">
+    </div>
+    <iframe id="olBody"></iframe>
+    <div class="foot">
+      <span id="olCounter" class="muted"></span>
+      <span class="sp"></span>
+      <button onclick="closeModal('olModal')">Fechar simulação</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

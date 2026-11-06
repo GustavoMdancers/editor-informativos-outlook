@@ -1,0 +1,13 @@
+# Python / Virtualenv
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller build artifacts
+build/
+dist/
+
+# Runtime logs
+logs/
+*.log
