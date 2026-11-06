@@ -60,6 +60,7 @@ def load_config() -> Dict[str, Any]:
         "last_folder_entry_id": "",
         "last_folder_store_id": "",
         "last_folder_path": "",
+        "last_local_dir": "",
         "default_open_mode": "one",
         "default_sender_mode": "shared",
         "prefixes": ["REPROGRAMAÇÃO:", "CANCELAMENTO:"],
@@ -194,10 +195,43 @@ def api_pick_folder():
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
+@app.route("/api/pick-local-folder", methods=["POST"])
+def api_pick_local_folder():
+    """Opens a native Windows folder selection dialog on the local machine."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        cfg = load_config()
+        initial_dir = cfg.get("last_local_dir") or os.path.expanduser("~")
+        if not os.path.isdir(initial_dir):
+            initial_dir = os.path.expanduser("~")
+
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            root.attributes("-topmost", True)
+        except Exception:
+            pass
+        selected = filedialog.askdirectory(
+            parent=root,
+            initialdir=initial_dir,
+            title="Selecione a pasta com os arquivos .msg",
+        )
+        root.destroy()
+        if not selected:
+            return jsonify({"ok": True, "cancelled": True})
+        norm_path = os.path.normpath(selected)
+        return jsonify({"ok": True, "cancelled": False, "local_dir": norm_path})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Não foi possível abrir o seletor de pastas do Windows: {exc}"}), 500
+
+
 @app.route("/api/load-folder", methods=["POST"])
 def api_load_folder():
     body = request.get_json(silent=True) or {}
     is_demo = bool(body.get("demo", False))
+    local_dir = (body.get("local_dir") or "").strip()
     entry_id = body.get("entry_id", "")
     store_id = body.get("store_id", "")
     max_items = int(body.get("max_items", 200))
@@ -214,9 +248,18 @@ def api_load_folder():
             SESSION_STATE["folder_path"] = folder_path
             SESSION_STATE["entry_id"] = "DEMO"
             SESSION_STATE["store_id"] = "DEMO"
+        elif local_dir:
+            res = com_worker.run(ol_reader.load_emails_from_local_folder, local_dir, max_items, subject_filter)
+            emails: List[EmailItem] = res["emails"]
+            folder_path = f"Disco Local: {res['folder_path']}"
+            SESSION_STATE["is_demo"] = False
+            SESSION_STATE["folder_path"] = folder_path
+            SESSION_STATE["entry_id"] = ""
+            SESSION_STATE["store_id"] = ""
+            save_config({"last_local_dir": res["local_dir"]})
         else:
             if not entry_id:
-                return jsonify({"ok": False, "error": "Selecione uma pasta do Outlook."}), 400
+                return jsonify({"ok": False, "error": "Selecione uma pasta do Outlook ou uma pasta local com arquivos .msg."}), 400
             res = com_worker.run(ol_reader.load_emails_from_folder, entry_id, store_id, max_items, subject_filter)
             emails: List[EmailItem] = res["emails"]
             folder_path = res["folder_path"]
@@ -332,6 +375,7 @@ def api_open_draft():
             email_item.bcc,
             sender_mode,
             shared_mailbox,
+            email_item.file_path,
         )
         log_entry = {
             "hora": now_str,

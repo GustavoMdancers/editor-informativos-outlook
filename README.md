@@ -6,8 +6,9 @@ Aplicação desktop em Python com **interface web no navegador** (distribuída t
 
 ## Principais Funcionalidades
 
-- **Seleção de Pasta do Outlook:**
-  - Navegação pela árvore de todas as contas e caixas compartilhadas (como `sir.fibra`) diretamente na interface web ou por meio da janela nativa do Outlook (`Namespace.PickFolder()`).
+- **Seleção de Origem dos E-mails (Pasta do Outlook ou Pasta Local com `.msg`):**
+  - **Pasta do Outlook:** Navegação pela árvore de todas as contas e caixas compartilhadas (como `sir.fibra`) diretamente na interface web ou por meio da janela nativa do Outlook (`Namespace.PickFolder()`).
+  - **Pasta Local (`.msg`):** Opção para buscar ou digitar uma pasta do computador contendo arquivos `.msg` salvos localmente (com botão **📂 Procurar pasta…** que abre o seletor de pastas do Windows). Lê todos os arquivos `.msg` preservando HTML, destinatários, anexos e logotipo embutido, sem modificar os arquivos originais no disco.
   - Filtro por assunto e limite de itens carregados, além de memorização da última pasta utilizada.
 - **Detecção Inteligente de Campos em Comum:**
   - **Assunto:** identifica prefixos de cenário (`REPROGRAMAÇÃO:`, `CANCELAMENTO:`) e assuntos base padronizados (`INFORMATIVO DE ATIVIDADE PROGRAMADA - AMERICAN TOWER` e `MANUTENÇÃO PROGRAMADA`), permitindo edição global para o lote inteiro ou individual por e-mail.

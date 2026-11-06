@@ -13,7 +13,7 @@
   <div class="brand"><div class="logo">✉</div>Editor de Informativos</div>
   <div class="folder">
     <span class="path" id="folderPath">Nenhuma pasta selecionada</span>
-    <button id="btnFolder">📁 Selecionar pasta do Outlook</button>
+    <button id="btnFolder">📁 Selecionar origem dos e-mails</button>
   </div>
   <button class="ghost" id="btnExit" title="Encerra o servidor local e fecha a aplicação">⏻ Sair</button>
 </header>
@@ -22,16 +22,17 @@
   <section class="empty" id="empty">
     <div class="box">
       <h2 style="margin:0 0 6px">Edição em lote de informativos</h2>
-      <div class="muted" style="font-size:14px">Escolha a pasta do Outlook com os informativos de atividade programada para começar.</div>
+      <div class="muted" style="font-size:14px">Escolha uma pasta do Outlook ou uma pasta local com arquivos <b>.msg</b> para começar.</div>
       <div class="steps">
-        <div><b>1</b>Selecione a pasta do Outlook (ex.: caixa compartilhada &gt; Informativos)</div>
+        <div><b>1</b>Selecione a pasta no Outlook ou uma pasta local com arquivos <b>.msg</b></div>
         <div><b>2</b>Revise e altere os campos em comum detectados</div>
         <div><b>3</b>Confirme para abrir cada e-mail como rascunho no Outlook</div>
       </div>
       <div class="empty-actions">
-        <button class="primary" onclick="openFolderModal()">📁 Selecionar pasta do Outlook</button>
+        <button class="primary" onclick="openFolderModal('outlook')">📁 Pasta do Outlook</button>
+        <button class="primary" onclick="openFolderModal('local')">💻 Pasta local (.msg)</button>
         <button id="btnLastFolder" hidden>↺ Reabrir última pasta</button>
-        <button onclick="loadDemoFolder()" title="Carrega 6 informativos de exemplo para testar a ferramenta">🧪 Carregar lote de demonstração</button>
+        <button onclick="loadDemoFolder()" title="Carrega 6 informativos de exemplo para testar a ferramenta">🧪 Lote de demonstração</button>
       </div>
     </div>
   </section>
@@ -125,7 +126,15 @@
 <!-- Modal: pastas -->
 <div class="modal" id="folderModal">
   <div class="dlg">
-    <div class="hd">Selecionar pasta do Outlook<span class="sp"></span><button class="small" onclick="closeModal('folderModal')">✕</button></div>
+    <div class="hd">
+      <span>Selecionar origem dos e-mails</span>
+      <span class="sp"></span>
+      <div class="seg" id="srcTabs" style="margin-right:10px">
+        <button data-tab="outlook" class="on">📫 Pasta do Outlook</button>
+        <button data-tab="local">💻 Pasta local (.msg)</button>
+      </div>
+      <button class="small" onclick="closeModal('folderModal')">✕</button>
+    </div>
     <div class="bd">
       <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
         <input type="text" id="subjFilterInput" placeholder="Filtro opcional no assunto (ex.: INFORMATIVO)..." style="flex:1">
@@ -133,10 +142,28 @@
           <input type="number" id="maxItemsInput" value="200" min="1" max="1000" style="width:72px">
         </label>
       </div>
-      <div class="tree" id="tree"><div class="muted">Carregando pastas do Outlook…</div></div>
+
+      <!-- Aba 1: Pasta do Outlook -->
+      <div id="tabOutlook">
+        <div class="tree" id="tree"><div class="muted">Carregando pastas do Outlook…</div></div>
+      </div>
+
+      <!-- Aba 2: Pasta Local (.msg) -->
+      <div id="tabLocal" hidden>
+        <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px">
+          <div style="font-weight:600;margin-bottom:6px">Caminho da pasta no computador (arquivos .msg)</div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="localDirInput" placeholder="Ex.: C:\Users\...\Notificacoes">
+            <button id="btnBrowseLocal" style="white-space:nowrap">📂 Procurar pasta…</button>
+          </div>
+          <div class="hint" style="margin-top:8px">
+            Todos os arquivos <b>.msg</b> dentro da pasta informada serão lidos preservando o corpo HTML, destinatários, anexos e o logotipo embutido. Os arquivos originais não são alterados.
+          </div>
+        </div>
+      </div>
     </div>
     <div class="ft">
-      <button id="btnNativePick" title="Abre a janela nativa de seleção de pastas do Outlook">🪟 Usar seletor do Outlook…</button>
+      <button id="btnNativePick" title="Abre a janela nativa de seleção de pastas do Outlook">🪟 Seletor do Outlook…</button>
       <button onclick="closeModal('folderModal'); loadDemoFolder();" title="Carrega 6 informativos de exemplo">🧪 Lote de demonstração</button>
       <span style="flex:1"></span>
       <button onclick="closeModal('folderModal')">Cancelar</button>

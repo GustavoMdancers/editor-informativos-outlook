@@ -15,6 +15,7 @@ const S = {
   config: {},
   stores: [],
   pickedFolder: null,
+  srcTab: 'outlook',
   isDemo: false,
   emails: [],
   fields: [],
@@ -104,11 +105,19 @@ async function initApp() {
       $('senderMode').value = S.config.default_sender_mode;
       $('sharedMailboxInput').disabled = $('senderMode').value !== 'shared';
     }
+    if (S.config.last_local_dir) {
+      $('localDirInput').value = S.config.last_local_dir;
+    }
     if (S.config.last_folder_entry_id && S.config.last_folder_path) {
       const btnLast = $('btnLastFolder');
       btnLast.hidden = false;
       btnLast.textContent = `↺ Reabrir: ${S.config.last_folder_path}`;
       btnLast.onclick = () => loadOutlookFolder(S.config.last_folder_entry_id, S.config.last_folder_store_id);
+    } else if (S.config.last_local_dir) {
+      const btnLast = $('btnLastFolder');
+      btnLast.hidden = false;
+      btnLast.textContent = `↺ Reabrir pasta local: ${S.config.last_local_dir}`;
+      btnLast.onclick = () => loadLocalMsgFolder(S.config.last_local_dir);
     }
     if (!res.outlook_ok) {
       showBanner(`Aviso: Não foi possível conectar ao Outlook clássico (${res.outlook_error}). Verifique se o Outlook está aberto ou use o lote de demonstração.`, true);
@@ -123,22 +132,57 @@ async function initApp() {
   }, 5000);
 }
 
-/* ===================== SELEÇÃO DE PASTAS DO OUTLOOK ===================== */
-async function openFolderModal() {
+/* ===================== SELEÇÃO DE PASTAS (OUTLOOK E LOCAL .MSG) ===================== */
+function updateModalLoadBtn() {
+  if (S.srcTab === 'local') {
+    $('btnLoadFolder').disabled = !$('localDirInput').value.trim();
+  } else {
+    $('btnLoadFolder').disabled = !S.pickedFolder;
+  }
+}
+
+function setSourceTab(tab) {
+  S.srcTab = tab === 'local' ? 'local' : 'outlook';
+  document.querySelectorAll('#srcTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.srcTab));
+  $('tabOutlook').hidden = S.srcTab !== 'outlook';
+  $('tabLocal').hidden = S.srcTab !== 'local';
+  $('btnNativePick').hidden = S.srcTab !== 'outlook';
+  updateModalLoadBtn();
+}
+
+$('srcTabs').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-tab]');
+  if (b) setSourceTab(b.dataset.tab);
+});
+
+$('localDirInput').addEventListener('input', updateModalLoadBtn);
+
+$('btnBrowseLocal').onclick = async () => {
+  try {
+    toast('Selecione a pasta com os arquivos .msg na janela do Windows…');
+    const res = await api('/api/pick-local-folder', { method: 'POST' });
+    if (res.cancelled || !res.local_dir) return;
+    $('localDirInput').value = res.local_dir;
+    updateModalLoadBtn();
+  } catch (err) {
+    toast('Erro ao abrir seletor de pastas do Windows: ' + err.message);
+  }
+};
+
+async function openFolderModal(initialTab = 'outlook') {
   openModal('folderModal');
+  setSourceTab(typeof initialTab === 'string' ? initialTab : 'outlook');
   $('tree').innerHTML = '<div class="muted">Consultando caixas de correio e pastas no Outlook…</div>';
-  $('btnLoadFolder').disabled = !S.pickedFolder;
 
   try {
     const res = await api('/api/folders');
     S.stores = res.stores || [];
-    // Abre o primeiro nível por padrão
     S.stores.forEach(st => { st.open = true; });
     renderTree();
   } catch (err) {
     $('tree').innerHTML = `<div style="color:var(--danger);padding:8px">
       <b>Não foi possível listar as pastas do Outlook:</b><br>${esc(err.message)}<br><br>
-      Certifique-se de que o <b>Outlook clássico (desktop)</b> está aberto, ou clique em <b>🧪 Lote de demonstração</b> no rodapé desta janela para testar.
+      Certifique-se de que o <b>Outlook clássico (desktop)</b> está aberto, use a aba <b>💻 Pasta local (.msg)</b> acima, ou clique em <b>🧪 Lote de demonstração</b>.
     </div>`;
   }
 }
@@ -213,9 +257,16 @@ $('tree').addEventListener('dblclick', ev => {
   }
 });
 
-$('btnFolder').onclick = openFolderModal;
+$('btnFolder').onclick = () => openFolderModal(S.srcTab || 'outlook');
 
 $('btnLoadFolder').onclick = () => {
+  if (S.srcTab === 'local') {
+    const dir = $('localDirInput').value.trim();
+    if (!dir) return;
+    closeModal('folderModal');
+    loadLocalMsgFolder(dir);
+    return;
+  }
   if (!S.pickedFolder) return;
   closeModal('folderModal');
   loadOutlookFolder(S.pickedFolder.entry_id, S.pickedFolder.store_id);
@@ -237,6 +288,12 @@ async function loadOutlookFolder(entryId, storeId) {
   const subjFilter = $('subjFilterInput') ? $('subjFilterInput').value.trim() : '';
   const maxItems = $('maxItemsInput') ? (parseInt($('maxItemsInput').value, 10) || 200) : 200;
   await doLoadFolder({ demo: false, entry_id: entryId, store_id: storeId, subject_filter: subjFilter, max_items: maxItems });
+}
+
+async function loadLocalMsgFolder(localDir) {
+  const subjFilter = $('subjFilterInput') ? $('subjFilterInput').value.trim() : '';
+  const maxItems = $('maxItemsInput') ? (parseInt($('maxItemsInput').value, 10) || 200) : 200;
+  await doLoadFolder({ demo: false, local_dir: localDir, subject_filter: subjFilter, max_items: maxItems });
 }
 
 async function loadDemoFolder() {

@@ -63,6 +63,7 @@ def open_draft_in_outlook(
     bcc: str = "",
     sender_mode: str = "shared",
     shared_mailbox: str = "sir.fibra",
+    file_path: str = "",
 ) -> Dict[str, Any]:
     """
     Creates a new draft in Outlook Classic with the modified HTML body, subject,
@@ -73,25 +74,39 @@ def open_draft_in_outlook(
     ns = app.GetNamespace("MAPI")
 
     src_item = None
+    opened_from_disk = False
     if entry_id:
         try:
             src_item = ns.GetItemFromID(entry_id, store_id) if store_id else ns.GetItemFromID(entry_id)
         except Exception:
             src_item = None
+    elif file_path and os.path.isfile(file_path):
+        try:
+            src_item = ns.OpenSharedItem(os.path.abspath(file_path))
+            opened_from_disk = True
+        except Exception:
+            src_item = None
 
     draft = None
-    # Strategy 1: Use Forward() from original item so Outlook natively clones all MAPI inline images (CID) & attachments
-    if src_item is not None:
-        try:
-            draft = src_item.Forward()
-        except Exception:
-            draft = None
-
-    # Strategy 2: Create a fresh MailItem and copy attachments with CID properties
-    if draft is None:
-        draft = app.CreateItem(0)  # olMailItem
+    try:
+        # Strategy 1: Use Forward() from original item so Outlook natively clones all MAPI inline images (CID) & attachments
         if src_item is not None:
-            _copy_attachments_with_cid(src_item, draft)
+            try:
+                draft = src_item.Forward()
+            except Exception:
+                draft = None
+
+        # Strategy 2: Create a fresh MailItem and copy attachments with CID properties
+        if draft is None:
+            draft = app.CreateItem(0)  # olMailItem
+            if src_item is not None:
+                _copy_attachments_with_cid(src_item, draft)
+    finally:
+        if opened_from_disk and src_item is not None:
+            try:
+                src_item.Close(1)  # olDiscard so original .msg file on disk is never modified
+            except Exception:
+                pass
 
     # Clear any pre-populated recipients from Forward() and set exact recipients
     try:

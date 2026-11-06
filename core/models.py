@@ -25,12 +25,14 @@ class EmailItem:
     fields: List[ExtractedField] = field(default_factory=list)
     inline_images: Dict[str, str] = field(default_factory=dict)  # cid -> data URI for browser preview
     attachments_count: int = 0
+    file_path: str = ""  # absolute path when loaded from a local .msg file
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "entry_id": self.entry_id,
             "store_id": self.store_id,
+            "file_path": self.file_path,
             "subject": self.subject,
             "to": self.to,
             "cc": self.cc,

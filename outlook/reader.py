@@ -312,3 +312,197 @@ def load_emails_from_folder(
         "store_id": getattr(folder, "StoreID", "") or store_id or "",
         "emails": emails,
     }
+
+
+
+def _parse_msg_with_extract_msg(fpath: str, idx: int) -> Optional[EmailItem]:
+    """
+    Fallback parser for .msg files using the pure-Python `extract_msg` library
+    when Outlook COM is not running or cannot open the file.
+    """
+    import extract_msg  # type: ignore
+
+    msg = extract_msg.openMsg(fpath)
+    try:
+        subj = getattr(msg, "subject", "") or ""
+        to_str = getattr(msg, "to", "") or ""
+        cc_str = getattr(msg, "cc", "") or ""
+        bcc_str = getattr(msg, "bcc", "") or ""
+        sender_name = getattr(msg, "sender", "") or ""
+        sent_dt = getattr(msg, "date", None)
+        sent_str = ""
+        if sent_dt is not None:
+            try:
+                sent_str = sent_dt.strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                sent_str = str(sent_dt)
+
+        raw_html = getattr(msg, "htmlBody", None)
+        if isinstance(raw_html, bytes):
+            try:
+                html_body = raw_html.decode("utf-8", errors="replace")
+            except Exception:
+                html_body = raw_html.decode("latin-1", errors="replace")
+        elif isinstance(raw_html, str):
+            html_body = raw_html
+        else:
+            html_body = ""
+
+        text_body = getattr(msg, "body", "") or ""
+        if not html_body and text_body:
+            escaped_lines = "<br>".join(text_body.splitlines())
+            html_body = f"<html><body><p>{escaped_lines}</p></body></html>"
+
+        cid_map: Dict[str, str] = {}
+        reg_att_count = 0
+        for att in getattr(msg, "attachments", []) or []:
+            cid = getattr(att, "cid", None) or getattr(att, "contentId", None) or ""
+            cid = cid.strip("<>") if isinstance(cid, str) else ""
+            fname = getattr(att, "longFilename", None) or getattr(att, "shortFilename", None) or "att.bin"
+            data = getattr(att, "data", None)
+            if cid and isinstance(data, bytes) and f"cid:{cid}" in html_body:
+                mime, _ = mimetypes.guess_type(fname)
+                if not mime:
+                    mime = "image/png"
+                b64 = base64.b64encode(data).decode("ascii")
+                cid_map[cid] = f"data:{mime};base64,{b64}"
+            else:
+                reg_att_count += 1
+
+        return EmailItem(
+            id=f"e{idx}",
+            entry_id="",
+            store_id="",
+            file_path=os.path.abspath(fpath),
+            subject=subj,
+            to=to_str,
+            cc=cc_str,
+            bcc=bcc_str,
+            sent_on=sent_str,
+            sender_name=sender_name,
+            html_body=html_body,
+            text_body=text_body,
+            inline_images=cid_map,
+            attachments_count=reg_att_count,
+        )
+    finally:
+        try:
+            msg.close()
+        except Exception:
+            pass
+
+
+def load_emails_from_local_folder(
+    local_dir: str,
+    max_items: int = 200,
+    subject_filter: str = "",
+) -> Dict[str, Any]:
+    """
+    Reads .msg files from a local directory on disk.
+    Uses Outlook's OpenSharedItem first (for 100% MAPI fidelity) and falls back to extract-msg.
+    """
+    abs_dir = os.path.abspath(local_dir.strip())
+    if not os.path.isdir(abs_dir):
+        raise ValueError(f"A pasta local informada não existe: {abs_dir}")
+
+    msg_files = sorted(
+        [
+            os.path.join(abs_dir, fn)
+            for fn in os.listdir(abs_dir)
+            if fn.lower().endswith(".msg") and os.path.isfile(os.path.join(abs_dir, fn))
+        ]
+    )
+
+    emails: List[EmailItem] = []
+    subj_filter_low = (subject_filter or "").strip().lower()
+
+    ns = None
+    try:
+        ns = _get_namespace()
+    except Exception:
+        ns = None
+
+    idx = 0
+    for fpath in msg_files:
+        if len(emails) >= max_items:
+            break
+
+        item_obj: Optional[EmailItem] = None
+
+        # Try Outlook COM OpenSharedItem first
+        if ns is not None:
+            item = None
+            try:
+                item = ns.OpenSharedItem(fpath)
+                subj = getattr(item, "Subject", "") or ""
+                if subj_filter_low and subj_filter_low not in subj.lower():
+                    try:
+                        item.Close(1)  # olDiscard
+                    except Exception:
+                        pass
+                    continue
+
+                html_body = getattr(item, "HTMLBody", "") or ""
+                text_body = getattr(item, "Body", "") or ""
+                to_str, cc_str, bcc_str = _extract_recipients(item)
+
+                sent_dt = (
+                    getattr(item, "SentOn", None)
+                    or getattr(item, "ReceivedTime", None)
+                    or getattr(item, "CreationTime", None)
+                )
+                sent_str = ""
+                if sent_dt is not None:
+                    try:
+                        sent_str = sent_dt.strftime("%d/%m/%Y %H:%M")
+                    except Exception:
+                        sent_str = str(sent_dt)
+
+                sender_name = getattr(item, "SentOnBehalfOfName", "") or getattr(item, "SenderName", "") or ""
+                cid_map, reg_att_count = _extract_inline_images(item, html_body)
+
+                item_obj = EmailItem(
+                    id=f"e{idx}",
+                    entry_id="",
+                    store_id="",
+                    file_path=os.path.abspath(fpath),
+                    subject=subj,
+                    to=to_str,
+                    cc=cc_str,
+                    bcc=bcc_str,
+                    sent_on=sent_str,
+                    sender_name=sender_name,
+                    html_body=html_body,
+                    text_body=text_body,
+                    inline_images=cid_map,
+                    attachments_count=reg_att_count,
+                )
+            except Exception:
+                item_obj = None
+            finally:
+                if item is not None:
+                    try:
+                        item.Close(1)  # olDiscard so original .msg file is unlocked and untouched
+                    except Exception:
+                        pass
+
+        # Fallback to extract-msg if COM wasn't available or failed
+        if item_obj is None:
+            try:
+                parsed = _parse_msg_with_extract_msg(fpath, idx)
+                if parsed is not None:
+                    if subj_filter_low and subj_filter_low not in (parsed.subject or "").lower():
+                        continue
+                    item_obj = parsed
+            except Exception:
+                continue
+
+        if item_obj is not None:
+            emails.append(item_obj)
+            idx += 1
+
+    return {
+        "folder_path": abs_dir,
+        "local_dir": abs_dir,
+        "emails": emails,
+    }
